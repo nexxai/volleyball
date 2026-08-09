@@ -217,7 +217,7 @@ class VolleyballAnalyzer:
         if self.player_model is not None:
             try:
                 # 使用球員模型（YOLO）檢測sports ball
-                results = self.player_model(frame, verbose=False, conf=0.15, classes=[32])  # 32是COCO的sports ball類
+                results = self.player_model(frame, verbose=False, conf=0.15, classes=[32], device=self.device)  # 32是COCO的sports ball類
                 if results and len(results) > 0:
                     boxes = results[0].boxes
                     if boxes is not None and len(boxes) > 0:
@@ -260,43 +260,51 @@ class VolleyballAnalyzer:
         
         try:
             # YOLO模型推理
-            results = self.action_model(frame, verbose=False)
-            # 保證可迭代
-            if not isinstance(results, (list, tuple)):
-                results = [results]
-            
-            # 解析結果
-            actions = []
-            for result in results:
-                boxes = result.boxes
-                if boxes is not None:
-                    for box in boxes:
-                        # 獲取邊界框座標
-                        xyxy = box.xyxy[0].cpu().numpy()
-                        x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
-                        confidence = float(box.conf[0].cpu().numpy())
-                        
-                        # 只保留置信度 >= 0.6 的動作檢測
-                        if confidence < 0.6:
-                            continue
-                        
-                        class_id = int(box.cls[0].cpu().numpy())
-                        
-                        # 獲取類別名稱
-                        class_name = self.action_model.names[class_id]
-                        
-                        actions.append({
-                            "bbox": [float(x1), float(y1), float(x2), float(y2)],
-                            "confidence": float(confidence),
-                            "class_id": class_id,
-                            "action": class_name
-                        })
-            
-            return actions
+            results = self.action_model(frame, verbose=False, device=self.device)
+            return self._parse_action_results(results)
             
         except Exception as e:
             print(f"動作檢測錯誤: {e}")
             return []
+
+    def detect_actions_batch(self, frames: List[np.ndarray]) -> List[List[Dict]]:
+        if self.action_model is None:
+            return [[] for _ in frames]
+
+        try:
+            results = self.action_model(frames, verbose=False, device=self.device)
+            return [self._parse_action_results([result]) for result in results]
+        except Exception as e:
+            print(f"批次動作檢測錯誤: {e}")
+            return [self.detect_actions(frame) for frame in frames]
+
+    def _parse_action_results(self, results) -> List[Dict]:
+        if not isinstance(results, (list, tuple)):
+            results = [results]
+
+        actions = []
+        for result in results:
+            boxes = result.boxes
+            if boxes is not None:
+                for box in boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()
+                    x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
+                    confidence = float(box.conf[0].cpu().numpy())
+
+                    if confidence < 0.6:
+                        continue
+
+                    class_id = int(box.cls[0].cpu().numpy())
+                    class_name = self.action_model.names[class_id]
+
+                    actions.append({
+                        "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                        "confidence": float(confidence),
+                        "class_id": class_id,
+                        "action": class_name
+                    })
+
+        return actions
 
     def detect_players(self, frame: np.ndarray) -> List[Dict]:
         """
@@ -307,39 +315,52 @@ class VolleyballAnalyzer:
             return []
         try:
             # 只檢測類別 0（person）以提高效率和準確性
-            results = self.player_model(frame, verbose=False, classes=[0])
-            players: List[Dict] = []
-            for result in results:
-                boxes = result.boxes
-                if boxes is not None:
-                    for box in boxes:
-                        xyxy = box.xyxy[0].cpu().numpy()
-                        x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
-                        confidence = float(box.conf[0].cpu().numpy())
-                        
-                        # 只保留置信度 >= 0.5 的球員檢測
-                        if confidence < 0.5:
-                            continue
-                        
-                        class_id = int(box.cls[0].cpu().numpy()) if box.cls is not None else 0
-                        label = self.player_model.names.get(class_id, "player") if hasattr(self.player_model, 'names') else "player"
-                        
-                        # 只保留類別 0（person）的檢測結果
-                        if class_id != 0:
-                            continue
-                        
-                        players.append({
-                            "bbox": [float(x1), float(y1), float(x2), float(y2)],
-                            "confidence": confidence,
-                            "class_id": class_id,
-                            "label": label
-                        })
-            return players
+            results = self.player_model(frame, verbose=False, classes=[0], device=self.device)
+            return self._parse_player_results(results)
         except Exception as e:
             print(f"球員偵測錯誤: {e}")
             import traceback
             traceback.print_exc()
             return []
+
+    def detect_players_batch(self, frames: List[np.ndarray]) -> List[List[Dict]]:
+        if self.player_model is None:
+            return [[] for _ in frames]
+
+        try:
+            results = self.player_model(frames, verbose=False, classes=[0], device=self.device)
+            return [self._parse_player_results([result]) for result in results]
+        except Exception as e:
+            print(f"批次球員偵測錯誤: {e}")
+            return [self.detect_players(frame) for frame in frames]
+
+    def _parse_player_results(self, results) -> List[Dict]:
+        players: List[Dict] = []
+        for result in results:
+            boxes = result.boxes
+            if boxes is not None:
+                for box in boxes:
+                    xyxy = box.xyxy[0].cpu().numpy()
+                    x1, y1, x2, y2 = float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])
+                    confidence = float(box.conf[0].cpu().numpy())
+
+                    if confidence < 0.5:
+                        continue
+
+                    class_id = int(box.cls[0].cpu().numpy()) if box.cls is not None else 0
+                    label = self.player_model.names.get(class_id, "player") if hasattr(self.player_model, 'names') else "player"
+
+                    if class_id != 0:
+                        continue
+
+                    players.append({
+                        "bbox": [float(x1), float(y1), float(x2), float(y2)],
+                        "confidence": confidence,
+                        "class_id": class_id,
+                        "label": label
+                    })
+
+        return players
     
     def preprocess_ball_frame(self, frame: np.ndarray) -> np.ndarray:
         """
@@ -798,7 +819,7 @@ class VolleyballAnalyzer:
                     continue
                 
                 # 使用 YOLOv8 模型檢測數字
-                results = self.jersey_number_yolo_model(roi, verbose=False, conf=0.15, iou=0.4)
+                results = self.jersey_number_yolo_model(roi, verbose=False, conf=0.15, iou=0.4, device=self.device)
                 
                 digit_detections = []
                 for result in results:
@@ -1468,6 +1489,22 @@ class VolleyballAnalyzer:
             interpolated.append(curr_point)
         
         return interpolated
+
+    def _batched_video_inference(self, cap, batch_size: int = 8):
+        while True:
+            frames = []
+            for _ in range(batch_size):
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                frames.append(frame)
+
+            if not frames:
+                return
+
+            players_batch = self.detect_players_batch(frames)
+            actions_batch = self.detect_actions_batch(frames)
+            yield from zip(frames, players_batch, actions_batch)
     
     def analyze_video(self, video_path: str, output_path: str = None, progress_callback=None) -> dict:
         """
@@ -1598,11 +1635,7 @@ class VolleyballAnalyzer:
             del active_actions[key]
         
         try:
-            while True:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                
+            for frame, players, actions in self._batched_video_inference(cap):
                 frame_count += 1
                 
                 # 確保 fps 是標量（在循環開始時計算一次）
@@ -1610,7 +1643,6 @@ class VolleyballAnalyzer:
                 timestamp = float(frame_count) / fps_scalar
                 
                 # ----- 球員偵測 + 追蹤 -----
-                players = self.detect_players(frame)
                 tracked_players = self.track_players(players, frame)  # 傳遞frame用於OCR
                 if tracked_players:
                     results["players_tracking"].append({
@@ -1633,7 +1665,6 @@ class VolleyballAnalyzer:
                     results["ball_tracking"]["detected_frames"] += 1
                 
                 # ----- 動作偵測並關聯球員id，合併連續動作 -----
-                actions = self.detect_actions(frame)
                 detected_action_keys = set()
                 
                 # 保存每一幀的動作檢測結果（用於動態顯示框）

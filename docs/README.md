@@ -13,7 +13,8 @@ docs/
 │   ├── BACKEND_TEST_COVERAGE_IMPROVEMENTS.md
 │   ├── COVERAGE_REPORT.md
 │   ├── PYTHON_MODERNIZATION.md
-│   └── TEST_COVERAGE_IMPROVEMENTS.md
+│   ├── TEST_COVERAGE_IMPROVEMENTS.md
+│   └── VIDEO_PROCESSING_BENCHMARK.md
 ├── features/                   # 功能實現文檔
 │   ├── JERSEY_NUMBER_DETECTION_COMPARISON.md
 │   └── OCR_WORKFLOW.md
@@ -32,6 +33,7 @@ docs/
 - **COVERAGE_REPORT.md**: 當前測試覆蓋率報告和改進建議
 - **PYTHON_MODERNIZATION.md**: Python 3.14、現代依賴版本、鎖檔與驗證結果
 - **TEST_COVERAGE_IMPROVEMENTS.md**: 測試覆蓋率改進總結
+- **VIDEO_PROCESSING_BENCHMARK.md**: 影片分析 CPU 效能基準、分析結果與優化實驗記錄
 
 ### Features（功能文檔）
 - **JERSEY_NUMBER_DETECTION_COMPARISON.md**: 球衣號碼檢測方法比較（YOLO vs EasyOCR）

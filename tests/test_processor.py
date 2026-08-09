@@ -584,6 +584,32 @@ class TestStablePlayerID:
 
 class TestAnalyzeVideo:
     """Tests for analyze_video method"""
+
+    def test_batched_video_inference_groups_frames(self, analyzer, sample_frame):
+        cap = Mock()
+        frames = [sample_frame for _ in range(9)]
+        cap.read.side_effect = lambda: (True, frames.pop(0)) if frames else (False, None)
+        analyzer.detect_players_batch = Mock(side_effect=lambda frames: [[{"player": True}] for _ in frames])
+        analyzer.detect_actions_batch = Mock(side_effect=lambda frames: [[{"action": True}] for _ in frames])
+
+        output = list(analyzer._batched_video_inference(cap))
+
+        assert len(output) == 9
+        assert [len(call.args[0]) for call in analyzer.detect_players_batch.call_args_list] == [8, 1]
+        assert [len(call.args[0]) for call in analyzer.detect_actions_batch.call_args_list] == [8, 1]
+        assert all(players == [{"player": True}] for _, players, _ in output)
+        assert all(actions == [{"action": True}] for _, _, actions in output)
+
+    def test_batch_inference_uses_selected_device(self, analyzer, sample_frame):
+        analyzer.device = "mps"
+        analyzer.player_model = Mock(return_value=[])
+        analyzer.action_model = Mock(return_value=[])
+
+        analyzer.detect_players_batch([sample_frame])
+        analyzer.detect_actions_batch([sample_frame])
+
+        assert analyzer.player_model.call_args.kwargs["device"] == "mps"
+        assert analyzer.action_model.call_args.kwargs["device"] == "mps"
     
     @patch('processor.cv2.VideoCapture')
     def test_analyze_video_success(self, mock_capture, analyzer, tmp_path):
