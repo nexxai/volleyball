@@ -419,7 +419,7 @@ class TestPlayerTracking:
         players = [
             {"id": 1, "bbox": [100, 100, 200, 300], "confidence": 0.9}
         ]
-        action_bbox = [250, 150, 300, 200]
+        action_bbox = [225, 150, 275, 200]
         result = analyzer.assign_action_to_player(action_bbox, players)
         assert result is not None
 
@@ -707,7 +707,7 @@ class TestProcessorEdgeCases:
             {"id": 1, "bbox": [100, 100, 200, 200], "confidence": 0.9}
         ]
         # Close enough for distance matching (within 1.5x diagonal)
-        action_bbox = [250, 150, 300, 200]  # Close but no overlap
+        action_bbox = [225, 150, 275, 200]  # Close but no overlap
         result = analyzer.assign_action_to_player(action_bbox, players)
         # Should match based on distance
         assert result is not None

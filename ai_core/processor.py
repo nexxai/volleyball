@@ -103,7 +103,7 @@ class VolleyballAnalyzer:
         # - 增加 hit_counter_max：需要更多次檢測才認為追蹤穩定
         # - 增加 initialization_delay：延遲初始化，減少短暫誤檢測
         self.tracker = norfair.Tracker(
-            distance_function="euclidean",  # 使用 euclidean 距離函數（與 volleyball_analytics-main 一致）
+            distance_function="mean_euclidean",  # bbox 兩個角點的平均歐氏距離
             distance_threshold=100,  # 增加到100像素，允許更大的移動範圍
             initialization_delay=3,  # 增加到3幀，減少短暫誤檢測
             hit_counter_max=15  # 增加到15，需要更多連續檢測才認為追蹤穩定

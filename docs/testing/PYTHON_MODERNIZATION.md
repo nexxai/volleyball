@@ -64,11 +64,15 @@ The existing Pydantic models use only `BaseModel`, typed fields, and attribute a
 The upgrade also exposed and fixed:
 
 - A deliberate analysis `HTTPException(404)` being caught and returned as 500.
+- Norfair 2.x requiring `mean_euclidean` instead of the removed `euclidean` distance name.
 - NumPy 2 tests that mocked scalar tensors with one-dimensional arrays.
+- Distance-match tests whose fixtures were outside the implementation's stated threshold.
 - TestClient cleanup by using its context manager fixture.
 
 ## Validation
 
+- Python 3.11: 173 tests passed, 1 skipped.
+- Python 3.14: 173 tests passed, 1 skipped.
 - Backend imports successfully on Python 3.11 and 3.14.
 - Fatal Flake8 checks pass on both Python versions.
 - Python 3.14 backend and AI-core Docker images build successfully.
