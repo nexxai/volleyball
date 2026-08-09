@@ -22,7 +22,7 @@ source venv/bin/activate
 
 # 安裝依賴
 echo "📚 安裝Python依賴..."
-pip install -r requirements.txt
+pip install -r requirements.lock
 
 # 創建必要的目錄
 echo "📁 創建目錄結構..."

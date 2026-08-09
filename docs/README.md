@@ -12,6 +12,7 @@ docs/
 ├── testing/                    # 測試相關文檔
 │   ├── BACKEND_TEST_COVERAGE_IMPROVEMENTS.md
 │   ├── COVERAGE_REPORT.md
+│   ├── PYTHON_MODERNIZATION.md
 │   └── TEST_COVERAGE_IMPROVEMENTS.md
 ├── features/                   # 功能實現文檔
 │   ├── JERSEY_NUMBER_DETECTION_COMPARISON.md
@@ -29,6 +30,7 @@ docs/
 ### Testing（測試文檔）
 - **BACKEND_TEST_COVERAGE_IMPROVEMENTS.md**: 後端測試覆蓋率改進記錄
 - **COVERAGE_REPORT.md**: 當前測試覆蓋率報告和改進建議
+- **PYTHON_MODERNIZATION.md**: Python 3.14、現代依賴版本、鎖檔與驗證結果
 - **TEST_COVERAGE_IMPROVEMENTS.md**: 測試覆蓋率改進總結
 
 ### Features（功能文檔）
@@ -74,4 +76,3 @@ docs/
 
 ### 更新 README
 當添加新文檔時，請更新本 README.md 文件，添加文檔說明。
-

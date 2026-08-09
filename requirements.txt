@@ -1,39 +1,20 @@
-# 後端依賴
-fastapi==0.95.2
-uvicorn[standard]==0.22.0
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-dotenv==1.0.0
+# Web API
+fastapi>=0.141,<0.142
+uvicorn[standard]>=0.52,<0.53
+python-multipart>=0.0.32,<0.1
+pydantic>=2.13,<2.14
 
-# 數據庫（離線/本地測試階段先移除，可日後加入）
-# sqlalchemy==2.0.15
-# alembic==1.11.1
-# psycopg2-binary==2.9.6
+# Task queue
+celery>=5.6,<5.7
+redis>=8.1,<8.2
 
-# 任務隊列
-celery==5.2.7
-redis==4.5.4
-
-# AI/ML 依賴（對應 Python 3.13 / 新版）
-torch>=2.6.0,<2.9.0
-torchvision>=0.21.0,<0.22.0
-ultralytics>=8.3.0
-opencv-python>=4.10.0
-onnxruntime>=1.18.0
-numpy>=1.26.0
-Pillow>=10.0.0
-
-# 數據處理（先移除需編譯的 scikit-learn 以避免 macOS/py3.13 編譯問題）
-pandas>=2.2.0
-
-# 其他工具
-pydantic==1.10.8
-httpx==0.24.1
-aiofiles==23.1.0
-norfair>=2.0.0
-
-# 測試依賴
-pytest>=7.4.0
-pytest-cov>=4.1.0
-pytest-asyncio>=0.21.0
+# AI/ML
+torch>=2.13,<2.14
+torchvision>=0.28,<0.29
+ultralytics>=8.4,<8.5
+opencv-python>=5.0,<5.1
+onnxruntime>=1.28,<1.29
+numpy==2.4.6; python_version < "3.12"
+numpy>=2.5,<2.6; python_version >= "3.12"
+Pillow>=12.3,<12.4
+norfair==2.1.1

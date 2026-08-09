@@ -93,7 +93,7 @@ class TestBallDetection:
         mock_result = Mock()
         mock_box = Mock()
         mock_box.conf = [Mock()]
-        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array([0.8])
+        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array(0.8)
         mock_box.xyxy = [Mock()]
         mock_box.xyxy[0].cpu.return_value.numpy.return_value = np.array([100, 100, 120, 120])
         mock_result.boxes = [mock_box]
@@ -181,9 +181,9 @@ class TestPlayerDetection:
         mock_box.xyxy = [Mock()]
         mock_box.xyxy[0].cpu.return_value.numpy.return_value = np.array([100, 100, 200, 300])
         mock_box.conf = [Mock()]
-        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array([0.8])
+        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array(0.8)
         mock_box.cls = [Mock()]
-        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array([0])
+        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array(0)
         mock_result.boxes = [mock_box]
         mock_model.return_value = [mock_result]
         mock_model.names = {0: "person"}
@@ -203,9 +203,9 @@ class TestPlayerDetection:
         mock_box.xyxy = [Mock()]
         mock_box.xyxy[0].cpu.return_value.numpy.return_value = np.array([100, 100, 200, 300])
         mock_box.conf = [Mock()]
-        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array([0.3])
+        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array(0.3)
         mock_box.cls = [Mock()]
-        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array([0])
+        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array(0)
         mock_result.boxes = [mock_box]
         mock_model.return_value = [mock_result]
         mock_model.names = {0: "person"}
@@ -236,9 +236,9 @@ class TestActionDetection:
         mock_box.xyxy = [Mock()]
         mock_box.xyxy[0].cpu.return_value.numpy.return_value = np.array([100, 100, 200, 200])
         mock_box.conf = [Mock()]
-        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array([0.8])
+        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array(0.8)
         mock_box.cls = [Mock()]
-        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array([0])
+        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array(0)
         mock_result.boxes = [mock_box]
         mock_model.return_value = [mock_result]
         mock_model.names = {0: "spike"}
@@ -258,9 +258,9 @@ class TestActionDetection:
         mock_box.xyxy = [Mock()]
         mock_box.xyxy[0].cpu.return_value.numpy.return_value = np.array([100, 100, 200, 200])
         mock_box.conf = [Mock()]
-        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array([0.5])
+        mock_box.conf[0].cpu.return_value.numpy.return_value = np.array(0.5)
         mock_box.cls = [Mock()]
-        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array([0])
+        mock_box.cls[0].cpu.return_value.numpy.return_value = np.array(0)
         mock_result.boxes = [mock_box]
         mock_model.return_value = [mock_result]
         mock_model.names = {0: "spike"}
@@ -770,4 +770,3 @@ class TestProcessorEdgeCases:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])
-

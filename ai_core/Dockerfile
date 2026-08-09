@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Set working directory
 WORKDIR /app
@@ -7,7 +7,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
@@ -16,11 +16,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
-COPY requirements.txt /app/
-RUN pip install --no-cache-dir -r /app/requirements.txt
-
-# Install Celery
-RUN pip install --no-cache-dir celery[redis]
+COPY requirements.lock /app/
+RUN pip install --no-cache-dir -r /app/requirements.lock
 
 # Copy AI core code
 COPY ai_core/ /app/ai_core/
@@ -38,4 +35,3 @@ ENV CELERY_RESULT_BACKEND=redis://redis:6379/0
 
 # Run Celery worker
 CMD ["celery", "-A", "worker", "worker", "--loglevel=info"]
-

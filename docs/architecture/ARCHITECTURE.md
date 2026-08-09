@@ -13,7 +13,7 @@ graph TB
     end
 
     subgraph Backend["Back-end"]
-        FastAPI["FastAPI Web Server<br/>(Python 3.11+)"]
+        FastAPI["FastAPI Web Server<br/>(Python 3.11 / 3.14)"]
         SQLite["SQLite Database<br/>(Video Metadata & Results)"]
         Celery["Celery Task Queue"]
         Redis["Redis Message Broker"]
@@ -94,7 +94,7 @@ graph TB
 
 ### Back-end Stack
 - **FastAPI** - Modern Python web framework
-- **Python 3.11+** - Programming language
+- **Python 3.11 / 3.14** - Tested programming language versions
 - **SQLite** - Lightweight database for video metadata and analysis results
 - **Celery** - Distributed task queue for async video processing
 - **Redis** - Message broker for Celery
@@ -159,7 +159,7 @@ The system is fully containerized using Docker Compose, providing:
   - Static file serving
 
 #### 2. Backend Container
-- **Base Image**: `python:3.11-slim`
+- **Base Image**: `python:3.14-slim`
 - **Port**: 8000
 - **Dependencies**: FastAPI, Uvicorn, all Python requirements
 - **Features**:
@@ -169,7 +169,7 @@ The system is fully containerized using Docker Compose, providing:
   - Volume mounts for data and models
 
 #### 3. AI Worker Container
-- **Base Image**: `python:3.11-slim`
+- **Base Image**: `python:3.14-slim`
 - **Dependencies**: PyTorch, OpenCV, YOLO models, Celery
 - **Features**:
   - Celery worker for async task processing
@@ -325,7 +325,7 @@ docker-compose up -d --build
 | **Language** | TypeScript |
 | **Styling** | Tailwind CSS |
 | **Backend Framework** | FastAPI |
-| **Backend Language** | Python 3.11+ |
+| **Backend Language** | Python 3.11 / 3.14 |
 | **Database** | SQLite / PostgreSQL |
 | **Task Queue** | Celery |
 | **Message Broker** | Redis |
@@ -360,4 +360,3 @@ docker-compose up -d --build
 - Input validation on all API endpoints
 - Docker container isolation
 - Volume mounts with proper permissions
-

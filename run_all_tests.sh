@@ -58,7 +58,7 @@ if [ "$BACKEND" = true ]; then
     # 檢查 pytest
     if ! command -v pytest &> /dev/null; then
         echo "❌ pytest 未安裝"
-        echo "   請運行: pip install -r requirements.txt"
+        echo "   請運行: pip install -r requirements-dev.lock"
         EXIT_CODE=1
     else
         PYTEST_CMD="pytest tests/"
@@ -145,5 +145,4 @@ if [ "$HTML_REPORT" = true ]; then
 fi
 
 exit $EXIT_CODE
-
 

@@ -408,6 +408,8 @@ async def start_analysis(video_id: str, background_tasks: BackgroundTasks):
             "video_id": video_id
         }
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"開始分析失敗: {str(e)}")
 
@@ -736,10 +738,7 @@ async def process_video(video_id: str, task_id: str):
         try:
             # 使用 run_in_executor 在執行緒池中執行阻塞操作
             # 這可以確保不會阻塞 FastAPI 的事件循環，讓其他請求（如 /videos）可以正常處理
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             
             results = await loop.run_in_executor(None, run_analysis)
         except Exception as e:
@@ -849,7 +848,7 @@ async def websocket_analysis(websocket: WebSocket, video_id: str):
             last_sent_progress[0] = mapped_progress
         
         # 啟動背景分析任務
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         
         def run_analysis_sync():
             analyzer = VolleyballAnalyzer(
@@ -1043,5 +1042,3 @@ async def websocket_progress(websocket: WebSocket, video_id: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-
-

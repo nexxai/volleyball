@@ -16,7 +16,7 @@ fi
 # 檢查 pytest 是否安裝
 if ! command -v pytest &> /dev/null; then
     echo "❌ pytest 未安裝"
-    echo "   請運行: pip install -r requirements.txt"
+    echo "   請運行: pip install -r requirements-dev.lock"
     exit 1
 fi
 
@@ -96,5 +96,4 @@ if [ "$HTML_REPORT" = true ] && [ -d "htmlcov" ]; then
 fi
 
 exit $EXIT_CODE
-
 

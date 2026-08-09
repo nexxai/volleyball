@@ -26,7 +26,8 @@ def client():
     """Create a FastAPI test client"""
     from fastapi.testclient import TestClient
     from main import app
-    return TestClient(app)
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 @pytest.fixture
@@ -169,4 +170,3 @@ def analyzer():
     """Create analyzer instance without models"""
     from processor import VolleyballAnalyzer
     return VolleyballAnalyzer()
-

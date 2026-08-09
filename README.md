@@ -4,7 +4,7 @@ A modern web application for volleyball video analysis using AI-powered ball tra
 
 一個使用 AI 技術進行排球影片分析的現代化網頁應用程式，包含球追蹤、球員偵測和動作識別功能。
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue)
+![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.14-blue)
 ![React](https://img.shields.io/badge/React-18.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
@@ -50,7 +50,7 @@ cd volleyball-analysis-webapp
 # Backend setup | 後端設定
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements.lock
 
 # Frontend setup | 前端設定
 cd frontend && npm install && cd ..
