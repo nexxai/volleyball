@@ -12,7 +12,8 @@ docs/
 ├── testing/                    # 測試相關文檔
 │   ├── BACKEND_TEST_COVERAGE_IMPROVEMENTS.md
 │   ├── COVERAGE_REPORT.md
-│   └── TEST_COVERAGE_IMPROVEMENTS.md
+│   ├── TEST_COVERAGE_IMPROVEMENTS.md
+│   └── VIDEO_PROCESSING_BENCHMARK.md
 ├── features/                   # 功能實現文檔
 │   ├── JERSEY_NUMBER_DETECTION_COMPARISON.md
 │   └── OCR_WORKFLOW.md
@@ -30,6 +31,7 @@ docs/
 - **BACKEND_TEST_COVERAGE_IMPROVEMENTS.md**: 後端測試覆蓋率改進記錄
 - **COVERAGE_REPORT.md**: 當前測試覆蓋率報告和改進建議
 - **TEST_COVERAGE_IMPROVEMENTS.md**: 測試覆蓋率改進總結
+- **VIDEO_PROCESSING_BENCHMARK.md**: 影片分析 CPU 效能基準、分析結果與優化實驗記錄
 
 ### Features（功能文檔）
 - **JERSEY_NUMBER_DETECTION_COMPARISON.md**: 球衣號碼檢測方法比較（YOLO vs EasyOCR）
@@ -74,4 +76,3 @@ docs/
 
 ### 更新 README
 當添加新文檔時，請更新本 README.md 文件，添加文檔說明。
-
