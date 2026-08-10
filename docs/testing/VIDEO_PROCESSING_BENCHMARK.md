@@ -348,6 +348,34 @@ Player and action parsing already discarded results below confidence thresholds 
 - Result: `data/results/Emme-first-1000-frames-model-confidence.json`
 - Result SHA-256: `d80e1ab508dca52ab491917834745980de233ef1bc6a399ef2a54419ba4c9c0b`
 
+## Indoor and Active-Play Comparison
+
+Two additional middle-of-video samples test how resolution and detection volume affect throughput:
+
+- `ClubVolleyball-middle-1000-frames.mp4`: source frames 55,225-56,224, H.264 CRF 18, SHA-256 `c8930b5dd3f2b1cc1978619a9323b38d4eb89579e5a6c102c9cf0f0ab062a205`.
+- `ClubVolleyball-middle-200-frames.mp4`: the first 200 frames of the Club sample, SHA-256 `ee31a621141913d006b7b3bc0943867f390f2703bcccdae8c42c5eee78082fed`.
+- `Emme-middle-1000-frames-720p-h264.mp4`: source frames 34,219-35,218, H.264 CRF 18, SHA-256 `40427120342edc030d419b5d0a866fa8d4ed73134a0ad4702cc909976f5fa334`.
+
+| Workload | Resolution | Analysis | Wall | Throughput | Player boxes | Action detections | Peak RSS |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Emme opening | 1280x720 | 35.06 s | 36.78 s | 28.52 frames/s | 5,247 | 0 | 1.84 GB |
+| Club middle, 200 frames | 1920x1080 | 11.53 s | 13.48 s | 17.35 frames/s | 1,582 | 5 | 2.13 GB |
+| Club middle, 1,000 frames | 1920x1080 | 40.04 s | 42.11 s | 24.98 frames/s | 6,125 | 15 | 2.43 GB |
+| Emme middle | 1280x720 | 42.26 s | 44.35 s | 23.66 frames/s | 8,664 | 0 | 2.20 GB |
+
+- Club middle is 14.2% slower than Emme's quiet opening, but 5.3% faster than the more detection-heavy Emme middle sample despite Club's 2.25x larger source frames.
+- Emme middle is 20.5% slower than Emme opening and produces 65.1% more player boxes. Content and downstream tracking/jersey work therefore dominate a simple resolution comparison.
+- The standalone Club 200-frame run includes model warm-up and contains 7.91 player boxes per frame versus 6.13 across the full Club sample, so its throughput should not be extrapolated linearly.
+- An initial Club 200-frame result of 15.59 seconds and a 720p Club result of 107.78 seconds were discarded because they ran under clear sustained thermal throttling. Downscaling also changed detections materially (6,125 to 7,434 player boxes), so transcoding is not a compute-only resolution control.
+
+Result fingerprints:
+
+| Result | SHA-256 |
+| --- | --- |
+| `ClubVolleyball-middle-200-frames-cooled.json` | `68d71de258f6083991ff9b4673bc2c113a83fcec3c296f39901881549e6477fd` |
+| `ClubVolleyball-middle-1000-frames.json` | `5b0291982d4cf74d77b6b00df905b5d89fb9db8d9b91ba1c5675ae070f3a157e` |
+| `Emme-middle-1000-frames-720p-h264.json` | `f3fe8e9ef7c9bfaa0496d0338435b58a1b781e81c6936b96aa5e17aa740165b4` |
+
 ## Pre-Modernization Dependency Audit
 
 The installed ML stack is already current according to the package index on 2026-08-09:
