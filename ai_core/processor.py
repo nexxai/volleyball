@@ -317,7 +317,9 @@ class VolleyballAnalyzer:
         
         try:
             # YOLO模型推理
-            results = self.action_model(frame, verbose=False, device=self.device)
+            results = self.action_model(
+                frame, verbose=False, conf=0.6, device=self.device
+            )
             return self._parse_action_results(results)
             
         except Exception as e:
@@ -329,7 +331,9 @@ class VolleyballAnalyzer:
             return [[] for _ in frames]
 
         try:
-            results = self.action_model(frames, verbose=False, device=self.device)
+            results = self.action_model(
+                frames, verbose=False, conf=0.6, device=self.device
+            )
             return [self._parse_action_results([result]) for result in results]
         except Exception as e:
             print(f"批次動作檢測錯誤: {e}")
@@ -372,7 +376,9 @@ class VolleyballAnalyzer:
             return []
         try:
             # 只檢測類別 0（person）以提高效率和準確性
-            results = self.player_model(frame, verbose=False, classes=[0], device=self.device)
+            results = self.player_model(
+                frame, verbose=False, conf=0.5, classes=[0], device=self.device
+            )
             return self._parse_player_results(results)
         except Exception as e:
             print(f"球員偵測錯誤: {e}")
@@ -385,7 +391,9 @@ class VolleyballAnalyzer:
             return [[] for _ in frames]
 
         try:
-            results = self.player_model(frames, verbose=False, classes=[0], device=self.device)
+            results = self.player_model(
+                frames, verbose=False, conf=0.5, classes=[0], device=self.device
+            )
             return [self._parse_player_results([result]) for result in results]
         except Exception as e:
             print(f"批次球員偵測錯誤: {e}")

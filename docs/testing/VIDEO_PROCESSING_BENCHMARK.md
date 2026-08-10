@@ -330,6 +330,24 @@ Before a jersey reaches the three-observation lock, the pipeline previously re-r
 - Result: `data/results/Emme-first-1000-frames-jersey-interval5.json`
 - Result SHA-256: `2b85779402c04f65234451de3b9c09f2a7a0b90e5078a9229b013b67bd6d9e3f`
 
+## Accepted Model-Side Confidence Filtering
+
+Player and action parsing already discarded results below confidence thresholds of 0.5 and 0.6 respectively, but Ultralytics used its lower default threshold during non-maximum suppression and result construction. Passing the existing thresholds into prediction avoids transferring and materializing boxes that the application cannot use.
+
+| Metric | Jersey cadence | Model-side filtering | Change |
+| --- | ---: | ---: | ---: |
+| Analysis time | 37.99 s | 35.06 s | 7.7% faster |
+| Wall time | 39.73 s | 36.78 s | 7.4% faster |
+| Throughput | 26.32 frames/s | 28.52 frames/s | 8.4% higher |
+| Average CPU use | 8.80 cores | 8.80 cores | unchanged |
+| Peak RSS | 1.89 GB | 1.84 GB | 2.6% lower |
+
+- Total speedup over the original baseline: 6.64x.
+- Analysis now takes 1.73 seconds longer than the video's 33.33-second duration.
+- Correctness: every output field matches the jersey-cadence result after removing only `analysis_time`.
+- Result: `data/results/Emme-first-1000-frames-model-confidence.json`
+- Result SHA-256: `d80e1ab508dca52ab491917834745980de233ef1bc6a399ef2a54419ba4c9c0b`
+
 ## Pre-Modernization Dependency Audit
 
 The installed ML stack is already current according to the package index on 2026-08-09:

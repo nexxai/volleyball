@@ -771,7 +771,9 @@ class TestAnalyzeVideo:
         analyzer.detect_actions_batch([sample_frame])
 
         assert analyzer.player_model.call_args.kwargs["device"] == "mps"
+        assert analyzer.player_model.call_args.kwargs["conf"] == 0.5
         assert analyzer.action_model.call_args.kwargs["device"] == "mps"
+        assert analyzer.action_model.call_args.kwargs["conf"] == 0.6
     
     @patch('processor.cv2.VideoCapture')
     def test_analyze_video_success(self, mock_capture, analyzer, tmp_path):
