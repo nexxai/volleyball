@@ -184,7 +184,7 @@ The full batch-8 gain is smaller than its 200-frame gain. It is faster through a
 
 - Jersey scheduling says "every 5 frames" but checks `track_id % 5 == 0`. Tracks divisible by five run jersey inference every frame while other tracks never run it. Correcting this may change jersey output and should be benchmarked separately.
 - This video produces no action detections, but the action model still consumes about one third of inference time. Skipping or sampling that model would change application behavior and was not done.
-- The full processor test file currently has 63 passing and 5 failing tests. The new batching and device-forwarding tests pass; the five failures predate and are unrelated to this work (three stale NumPy mocks and two existing distance-match expectations).
+- The modernized test suite has 178 passing tests and 1 skipped test on both Python 3.11 and Python 3.14.
 
 ## MPS Experiment
 
@@ -220,7 +220,54 @@ MPS is 3.78x faster than the original baseline and 3.67x faster than CPU batch 8
 - Result: `data/results/Emme-first-1000-frames-mps-batch8.json`
 - Result SHA-256: `918602a50f904ca06122c530feeb14878ce2bee02894a76e0b493ff212c4771a`
 
-## Dependency Audit
+## Post-MPS Profile
+
+Profiling all 1,000 frames after MPS identified the remaining stage costs:
+
+| Stage | Time | Share |
+| --- | ---: | ---: |
+| Ball ONNX | 23.45 s | 36.1% |
+| Player YOLO batches | 18.11 s | 27.8% |
+| Tracking and jersey inference | 16.64 s | 25.6% |
+| Action YOLO batches | 5.86 s | 9.0% |
+| Decode, aggregation, and postprocessing | 0.98 s | 1.5% |
+
+Jersey YOLO accounts for 16.13 of the 16.64 tracking seconds across 785 player checks.
+
+### Rejected Experiments
+
+- **Ball ONNX batching:** batch 8 took 1.96 seconds per 100 windows versus 1.90 seconds sequentially, changed heatmaps by up to `8.34e-7`, and raised peak memory to 7.1 GB.
+- **CoreML ball inference:** CoreML supported only 89 of 236 graph nodes and took 2.18 seconds per 100 windows versus CPU's 1.80 seconds. Heatmaps changed by up to `0.0197`.
+- **Batched jersey ROIs:** batching front/back crops increased jersey time from 16.13 to 18.77 seconds and full profiled time from 65.04 to 69.18 seconds. Mixed-aspect batch padding outweighed call savings.
+- **Larger MPS YOLO batches:** player batch 8 remained fastest. Action batch 16 improved its isolated stage by only 3%, which does not justify a dual-batch pipeline.
+
+### ONNX Thread Tuning
+
+ONNX Runtime thread-count tests produced bit-identical heatmaps:
+
+| Intra-op threads | 100-window time |
+| ---: | ---: |
+| Runtime default | 1.79 s |
+| 8 | 1.73 s |
+| 12 | 1.67 s |
+| 18 | 2.31 s |
+
+The application keeps ONNX Runtime's adaptive default unless `BALL_INFERENCE_THREADS` is set. The benchmark machine uses `BALL_INFERENCE_THREADS=12`; invalid values warn and fall back to the runtime default.
+
+| Metric | MPS batch 8 | MPS + ONNX tuning | Change |
+| --- | ---: | ---: | ---: |
+| Analysis time | 61.58 s | 60.71 s | 1.4% faster |
+| Wall time | 63.31 s | 62.41 s | 1.4% faster |
+| Throughput | 16.24 frames/s | 16.47 frames/s | 1.4% higher |
+| Average CPU use | 4.00 cores | 4.93 cores | 23.3% higher |
+| Peak RSS | 1.85 GB | 1.87 GB | 1.1% higher |
+
+- Total speedup over the original baseline: 3.83x
+- Correctness: every output field matches the previous MPS result after removing only `analysis_time`.
+- Result: `data/results/Emme-first-1000-frames-mps-threads12.json`
+- Result SHA-256: `71759807b6061cffb6db2c38de5306c62313ddff6114cb5682a61dc581a7421f`
+
+## Pre-Modernization Dependency Audit
 
 The installed ML stack is already current according to the package index on 2026-08-09:
 
@@ -234,7 +281,7 @@ The installed ML stack is already current according to the package index on 2026
 | NumPy | 2.4.6 | 2.5.2 |
 | Norfair | 2.1.1 | 2.1.1 |
 
-`requirements.txt` does not reproduce either environment: it caps PyTorch below 2.9 and torchvision below 0.22. Restoring dependency reproducibility should be a separate change before testing library upgrades.
+The original `requirements.txt` did not reproduce either environment: it capped PyTorch below 2.9 and torchvision below 0.22.
 
 The web stack is substantially older:
 
@@ -247,11 +294,11 @@ The web stack is substantially older:
 | Redis client | 4.5.4 | 8.1.0 |
 | Norfair | 2.1.1 | 2.3.0 |
 
-Python 3.14 can run the AI core, but the backend cannot import because FastAPI 0.95.2 and Pydantic 1.10.8 are incompatible with Python 3.14. Warmed 200-frame MPS runs were effectively tied: 11.77 seconds on Python 3.11 and 11.83 seconds on Python 3.14. The interpreter upgrade does not provide a meaningful video-processing speedup because inference runs in PyTorch, Metal, ONNX Runtime, and OpenCV native code.
+Before modernization, Python 3.14 could run the AI core but the backend could not import because FastAPI 0.95.2 and Pydantic 1.10.8 were incompatible. Warmed 200-frame MPS runs were effectively tied: 11.77 seconds on Python 3.11 and 11.83 seconds on Python 3.14. The interpreter upgrade does not provide a meaningful video-processing speedup because inference runs in PyTorch, Metal, ONNX Runtime, and OpenCV native code.
 
 Recommendation:
 
-1. Keep Python 3.11 for the MPS performance change.
-2. In a separate modernization change, upgrade FastAPI and Pydantic together and add a reproducible lock file.
-3. Validate the full API and worker suite before moving the supported runtime to Python 3.14.
-4. Treat modernization as compatibility, security, and maintainability work rather than a video-performance optimization.
+1. Keep Python 3.11 for benchmark continuity.
+2. Treat modernization as compatibility, security, and maintainability work rather than a video-performance optimization.
+
+The modernization was completed on the stacked branch and is documented in `PYTHON_MODERNIZATION.md`. Python 3.11 and 3.14 now install from reproducible locks and pass the same suite.

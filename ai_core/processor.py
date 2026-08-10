@@ -123,7 +123,22 @@ class VolleyballAnalyzer:
     def load_ball_model(self, model_path: str):
         """載入球追蹤模型 (ONNX)"""
         try:
-            self.ball_model = ort.InferenceSession(model_path)
+            session_options = ort.SessionOptions()
+            configured_threads = os.getenv("BALL_INFERENCE_THREADS")
+            if configured_threads:
+                try:
+                    thread_count = int(configured_threads)
+                    if thread_count < 1:
+                        raise ValueError
+                    session_options.intra_op_num_threads = thread_count
+                except ValueError:
+                    print(
+                        "⚠️  BALL_INFERENCE_THREADS 必須是正整數，使用 ONNX Runtime 預設值"
+                    )
+            self.ball_model = ort.InferenceSession(
+                model_path,
+                sess_options=session_options
+            )
             print(f"✅ 球追蹤模型載入成功: {model_path}")
         except Exception as e:
             print(f"❌ 球追蹤模型載入失敗: {e}")

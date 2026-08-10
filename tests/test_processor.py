@@ -473,6 +473,39 @@ class TestModelLoading:
         nonexistent_path = tmp_path / "nonexistent_model.onnx"
         analyzer.load_ball_model(str(nonexistent_path))
         assert True
+
+    @patch("processor.ort.InferenceSession")
+    def test_load_ball_model_configures_threads(self, mock_session, analyzer, tmp_path, monkeypatch):
+        model_path = tmp_path / "ball.onnx"
+        model_path.touch()
+        monkeypatch.setenv("BALL_INFERENCE_THREADS", "4")
+
+        analyzer.load_ball_model(str(model_path))
+
+        options = mock_session.call_args.kwargs["sess_options"]
+        assert options.intra_op_num_threads == 4
+
+    @patch("processor.ort.InferenceSession")
+    def test_load_ball_model_uses_runtime_thread_default(self, mock_session, analyzer, tmp_path, monkeypatch):
+        model_path = tmp_path / "ball.onnx"
+        model_path.touch()
+        monkeypatch.delenv("BALL_INFERENCE_THREADS", raising=False)
+
+        analyzer.load_ball_model(str(model_path))
+
+        options = mock_session.call_args.kwargs["sess_options"]
+        assert options.intra_op_num_threads == 0
+
+    @patch("processor.ort.InferenceSession")
+    def test_load_ball_model_ignores_invalid_threads(self, mock_session, analyzer, tmp_path, monkeypatch):
+        model_path = tmp_path / "ball.onnx"
+        model_path.touch()
+        monkeypatch.setenv("BALL_INFERENCE_THREADS", "invalid")
+
+        analyzer.load_ball_model(str(model_path))
+
+        options = mock_session.call_args.kwargs["sess_options"]
+        assert options.intra_op_num_threads == 0
     
     def test_load_action_model_nonexistent(self, analyzer, tmp_path):
         """Test loading nonexistent action model"""
