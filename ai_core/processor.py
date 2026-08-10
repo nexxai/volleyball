@@ -8,6 +8,7 @@ import numpy as np
 import json
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Dict, Tuple, Optional
 import torch
@@ -185,7 +186,14 @@ class VolleyballAnalyzer:
         Returns:
             球的位置信息或None
         """
-        # 優先使用VballNet ONNX模型
+        ball_info = self._detect_ball_onnx(frame)
+        if ball_info is not None:
+            return ball_info
+
+        return self._detect_ball_yolo(frame)
+
+    def _detect_ball_onnx(self, frame: np.ndarray) -> Optional[Dict]:
+        """使用 VballNet ONNX 模型檢測球。"""
         if self.ball_model is not None:
             try:
                 # 預處理當前幀
@@ -227,8 +235,11 @@ class VolleyballAnalyzer:
                 if not hasattr(self, '_ball_onnx_error_logged'):
                     print(f"ONNX球檢測錯誤，嘗試YOLO: {e}")
                     self._ball_onnx_error_logged = True
-        
-        # 備選方案：使用YOLO檢測"sports ball"
+
+        return None
+
+    def _detect_ball_yolo(self, frame: np.ndarray) -> Optional[Dict]:
+        """使用球員 YOLO 模型作為球檢測備選方案。"""
         if self.player_model is not None:
             try:
                 # 使用球員模型（YOLO）檢測sports ball
@@ -254,7 +265,7 @@ class VolleyballAnalyzer:
                                 "bbox": [float(x1), float(y1), float(x2), float(y2)],
                                 "confidence": best_conf
                             }
-            except Exception as e:
+            except Exception:
                 # 靜默失敗
                 pass
         
@@ -1505,21 +1516,39 @@ class VolleyballAnalyzer:
         
         return interpolated
 
+    def _detect_balls_onnx(self, frames: List[np.ndarray]) -> List[Optional[Dict]]:
+        return [self._detect_ball_onnx(frame) for frame in frames]
+
     def _batched_video_inference(self, cap, batch_size: int = 8):
-        while True:
-            frames = []
-            for _ in range(batch_size):
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                frames.append(frame)
+        with ThreadPoolExecutor(max_workers=1, thread_name_prefix="ball-inference") as executor:
+            while True:
+                frames = []
+                for _ in range(batch_size):
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frames.append(frame)
 
-            if not frames:
-                return
+                if not frames:
+                    return
 
-            players_batch = self.detect_players_batch(frames)
-            actions_batch = self.detect_actions_batch(frames)
-            yield from zip(frames, players_batch, actions_batch)
+                ball_future = None
+                if self.device == "mps" and self.ball_model is not None:
+                    ball_future = executor.submit(self._detect_balls_onnx, frames)
+
+                players_batch = self.detect_players_batch(frames)
+                actions_batch = self.detect_actions_batch(frames)
+
+                if ball_future is not None:
+                    balls_batch = ball_future.result()
+                    balls_batch = [
+                        ball if ball is not None else self._detect_ball_yolo(frame)
+                        for frame, ball in zip(frames, balls_batch)
+                    ]
+                else:
+                    balls_batch = [self.detect_ball(frame) for frame in frames]
+
+                yield from zip(frames, players_batch, actions_batch, balls_batch)
     
     def analyze_video(self, video_path: str, output_path: str = None, progress_callback=None) -> dict:
         """
@@ -1650,7 +1679,7 @@ class VolleyballAnalyzer:
             del active_actions[key]
         
         try:
-            for frame, players, actions in self._batched_video_inference(cap):
+            for frame, players, actions, ball_info in self._batched_video_inference(cap):
                 frame_count += 1
                 
                 # 確保 fps 是標量（在循環開始時計算一次）
@@ -1668,7 +1697,6 @@ class VolleyballAnalyzer:
                     results["player_detection"]["total_players_detected"] += len(tracked_players)
 
                 # ----- 球偵測 -----
-                ball_info = self.detect_ball(frame)
                 if ball_info:
                     results["ball_tracking"]["trajectory"].append({
                         "frame": int(frame_count),

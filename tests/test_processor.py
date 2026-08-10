@@ -624,14 +624,65 @@ class TestAnalyzeVideo:
         cap.read.side_effect = lambda: (True, frames.pop(0)) if frames else (False, None)
         analyzer.detect_players_batch = Mock(side_effect=lambda frames: [[{"player": True}] for _ in frames])
         analyzer.detect_actions_batch = Mock(side_effect=lambda frames: [[{"action": True}] for _ in frames])
+        analyzer.detect_ball = Mock(return_value={"ball": True})
 
         output = list(analyzer._batched_video_inference(cap))
 
         assert len(output) == 9
         assert [len(call.args[0]) for call in analyzer.detect_players_batch.call_args_list] == [8, 1]
         assert [len(call.args[0]) for call in analyzer.detect_actions_batch.call_args_list] == [8, 1]
-        assert all(players == [{"player": True}] for _, players, _ in output)
-        assert all(actions == [{"action": True}] for _, _, actions in output)
+        assert all(players == [{"player": True}] for _, players, _, _ in output)
+        assert all(actions == [{"action": True}] for _, _, actions, _ in output)
+        assert all(ball == {"ball": True} for _, _, _, ball in output)
+
+    def test_ball_inference_uses_dedicated_worker(self, analyzer, sample_frame):
+        import threading
+
+        cap = Mock()
+        frames = [
+            np.full_like(sample_frame, 1),
+            np.full_like(sample_frame, 2),
+        ]
+        cap.read.side_effect = lambda: (True, frames.pop(0)) if frames else (False, None)
+        analyzer.device = "mps"
+        analyzer.ball_model = Mock()
+        analyzer.detect_players_batch = Mock(side_effect=lambda frames: [[] for _ in frames])
+        analyzer.detect_actions_batch = Mock(side_effect=lambda frames: [[] for _ in frames])
+        worker_threads = []
+
+        def detect_ball(frame):
+            worker_threads.append(threading.get_ident())
+            return {"frame": int(frame[0, 0, 0])}
+
+        analyzer._detect_ball_onnx = detect_ball
+        output = list(analyzer._batched_video_inference(cap))
+
+        assert worker_threads
+        assert all(thread_id != threading.get_ident() for thread_id in worker_threads)
+        assert [ball["frame"] for _, _, _, ball in output] == [1, 2]
+
+    def test_ball_fallback_stays_on_main_thread(self, analyzer, sample_frame):
+        import threading
+
+        cap = Mock()
+        frames = [sample_frame for _ in range(2)]
+        cap.read.side_effect = lambda: (True, frames.pop(0)) if frames else (False, None)
+        analyzer.device = "mps"
+        analyzer.ball_model = Mock()
+        analyzer.detect_players_batch = Mock(side_effect=lambda frames: [[] for _ in frames])
+        analyzer.detect_actions_batch = Mock(side_effect=lambda frames: [[] for _ in frames])
+        analyzer._detect_ball_onnx = Mock(return_value=None)
+        fallback_threads = []
+
+        def detect_fallback(frame):
+            fallback_threads.append(threading.get_ident())
+            return None
+
+        analyzer._detect_ball_yolo = detect_fallback
+        list(analyzer._batched_video_inference(cap))
+
+        assert fallback_threads
+        assert all(thread_id == threading.get_ident() for thread_id in fallback_threads)
 
     def test_batch_inference_uses_selected_device(self, analyzer, sample_frame):
         analyzer.device = "mps"

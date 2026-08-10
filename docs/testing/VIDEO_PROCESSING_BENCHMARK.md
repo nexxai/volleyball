@@ -184,7 +184,7 @@ The full batch-8 gain is smaller than its 200-frame gain. It is faster through a
 
 - Jersey scheduling says "every 5 frames" but checks `track_id % 5 == 0`. Tracks divisible by five run jersey inference every frame while other tracks never run it. Correcting this may change jersey output and should be benchmarked separately.
 - This video produces no action detections, but the action model still consumes about one third of inference time. Skipping or sampling that model would change application behavior and was not done.
-- The modernized test suite has 178 passing tests and 1 skipped test on both Python 3.11 and Python 3.14.
+- The modernized test suite has 180 passing tests and 1 skipped test on both Python 3.11 and Python 3.14.
 
 ## MPS Experiment
 
@@ -266,6 +266,25 @@ The application keeps ONNX Runtime's adaptive default unless `BALL_INFERENCE_THR
 - Correctness: every output field matches the previous MPS result after removing only `analysis_time`.
 - Result: `data/results/Emme-first-1000-frames-mps-threads12.json`
 - Result SHA-256: `71759807b6061cffb6db2c38de5306c62313ddff6114cb5682a61dc581a7421f`
+
+## Concurrent CPU/MPS Pipeline
+
+On MPS devices, ball ONNX inference uses CPU while player and action YOLO inference uses MPS. These stages have no data dependency within an eight-frame batch. A dedicated single-worker executor now processes ball windows in frame order while the main thread runs player then action inference serially on MPS. CPU and CUDA execution retain the serial path until separately benchmarked.
+
+YOLO ball fallback remains outside the worker and runs only after MPS inference completes, so the shared player model is never called concurrently. This avoids the detection nondeterminism observed in the rejected all-stage concurrency experiment.
+
+| Metric | Serial MPS + ONNX tuning | Concurrent pipeline | Change |
+| --- | ---: | ---: | ---: |
+| Analysis time | 60.71 s | 49.19 s | 19.0% faster |
+| Wall time | 62.41 s | 50.96 s | 18.3% faster |
+| Throughput | 16.47 frames/s | 20.33 frames/s | 23.4% higher |
+| Average CPU use | 4.93 cores | 7.18 cores | 45.6% higher |
+| Peak RSS | 1.87 GB | 1.89 GB | 1.1% higher |
+
+- Total speedup over the original baseline: 4.73x
+- Correctness: every output field matches the serial MPS result after removing only `analysis_time`.
+- Result: `data/results/Emme-first-1000-frames-concurrent-pipeline.json`
+- Result SHA-256: `b7b559a41bcb6a1a0f800de233f8c9087d57c391be517a7c266f3fb7e63d78ca`
 
 ## Pre-Modernization Dependency Audit
 
