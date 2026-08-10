@@ -184,7 +184,7 @@ The full batch-8 gain is smaller than its 200-frame gain. It is faster through a
 
 - Jersey scheduling says "every 5 frames" but checks `track_id % 5 == 0`. Tracks divisible by five run jersey inference every frame while other tracks never run it. Correcting this may change jersey output and should be benchmarked separately.
 - This video produces no action detections, but the action model still consumes about one third of inference time. Skipping or sampling that model would change application behavior and was not done.
-- The modernized test suite has 184 passing tests and 1 skipped test on both Python 3.11 and Python 3.14.
+- The modernized test suite has 186 passing tests and 1 skipped test on both Python 3.11 and Python 3.14.
 
 ## MPS Experiment
 
@@ -241,6 +241,9 @@ Jersey YOLO accounts for 16.13 of the 16.64 tracking seconds across 785 player c
 - **Batched jersey ROIs:** batching front/back crops increased jersey time from 16.13 to 18.77 seconds and full profiled time from 65.04 to 69.18 seconds. Mixed-aspect batch padding outweighed call savings.
 - **Larger MPS YOLO batches:** player batch 8 remained fastest. Action batch 16 improved its isolated stage by only 3%, which does not justify a dual-batch pipeline.
 - **Cross-batch ball prefetch:** launching the next ball batch during current-frame jersey processing increased full time from 49.19 to 51.67 seconds because CPU inference contended with MPS preparation.
+- **FP16 MPS inference:** `quantize=16` increased the 200-frame analysis time from 9.30 to 17.47 seconds and changed tracked boxes from 943 to 947.
+- **FP16 CoreML player and action models:** dynamic batch-8 exports increased the 200-frame analysis time from 9.30 to 22.45 seconds and changed tracked boxes from 943 to 929.
+- **Shared ball-window storage:** replacing per-frame stacks with shared contiguous slices reduced CPU time but produced no meaningful analysis-time gain (7.94 to 7.87 seconds) and slightly increased wall time (9.57 to 9.68 seconds) in a controlled 200-frame comparison.
 
 ### ONNX Thread Tuning
 
@@ -307,6 +310,25 @@ The jersey path previously ran the jersey model again after it had repeatedly re
 - Default result SHA-256: `b77cf483453faf947f07f603264a0b2c3e62408367ab3a4f3042b52c895e730d`
 - Aggressive result: `data/results/Emme-first-1000-frames-jersey-cache.json`
 - Aggressive result SHA-256: `f631e4fae7afe0e3792a514be9a46f23e5e602b5eed9e5d65fbc2624f0121f7e`
+
+## Accepted Jersey Recheck Cadence
+
+Before a jersey reaches the three-observation lock, the pipeline previously re-ran jersey YOLO on every appearance of an eligible track. It now performs initial acquisition without delay, reuses the accepted identity between checks, and revalidates every fifth appearance. This preserves the correction window while removing most inference that occurs before the lock.
+
+| Metric | Lock only | Lock + recheck interval | Change |
+| --- | ---: | ---: | ---: |
+| Analysis time | 43.86 s | 37.99 s | 13.4% faster |
+| Wall time | 45.66 s | 39.73 s | 13.0% faster |
+| Throughput | 22.80 frames/s | 26.32 frames/s | 15.4% higher |
+| Average CPU use | 7.88 cores | 8.80 cores | 11.7% higher |
+| Peak RSS | 1.88 GB | 1.89 GB | 0.5% higher |
+
+- Total speedup over the original baseline: 6.13x.
+- `JERSEY_INFERENCE_INTERVAL=1` restores continuous revalidation; the default is `5`.
+- The existing track eligibility rule remains unchanged, so this optimization does not broaden automatic jersey detection to new tracks.
+- Correctness: every output field matches the lock-only result after removing only `analysis_time`.
+- Result: `data/results/Emme-first-1000-frames-jersey-interval5.json`
+- Result SHA-256: `2b85779402c04f65234451de3b9c09f2a7a0b90e5078a9229b013b67bd6d9e3f`
 
 ## Pre-Modernization Dependency Audit
 

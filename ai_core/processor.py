@@ -60,7 +60,8 @@ class VolleyballAnalyzer:
                  player_model_path: str = None,
                  jersey_number_model_path: str = None,
                  device: str = None,
-                 jersey_lock_observations: Optional[int] = None):
+                 jersey_lock_observations: Optional[int] = None,
+                 jersey_inference_interval: Optional[int] = None):
         """
         初始化分析器
         
@@ -71,6 +72,7 @@ class VolleyballAnalyzer:
             jersey_number_model_path: 球衣號碼檢測模型路徑 (YOLO格式)
             device: 運行設備 ('cpu', 'cuda', 'mps')，設為 None 時自動檢測最佳設備
             jersey_lock_observations: 連續相同辨識次數達此值後停止重複推理；0 表示停用
+            jersey_inference_interval: 已辨識球衣的重新檢測間隔
         """
         # 自動檢測最佳設備（如果未指定）
         if device is None:
@@ -91,6 +93,19 @@ class VolleyballAnalyzer:
                 )
                 jersey_lock_observations = 3
         self.jersey_lock_observations = max(0, jersey_lock_observations)
+
+        if jersey_inference_interval is None:
+            configured_interval = os.getenv("JERSEY_INFERENCE_INTERVAL", "5")
+            try:
+                jersey_inference_interval = int(configured_interval)
+                if jersey_inference_interval < 1:
+                    raise ValueError
+            except ValueError:
+                print(
+                    "⚠️  JERSEY_INFERENCE_INTERVAL 必須是正整數，使用預設值 5"
+                )
+                jersey_inference_interval = 5
+        self.jersey_inference_interval = max(1, jersey_inference_interval)
         
         self.ball_model = None
         self.action_model = None
@@ -132,6 +147,7 @@ class VolleyballAnalyzer:
         self.jersey_to_track_ids = {}  # 球衣號碼 -> [track_ids] 映射（用於追蹤穩定性）
         self.next_stable_id = 1  # 下一個穩定ID
         self.track_id_to_jersey_history = {}  # 追蹤ID -> [jersey_numbers] 歷史記錄（用於多幀融合）
+        self.jersey_recheck_counts = {}  # 已辨識球衣距離上次推理的幀數
         
         # 球追蹤緩衝區（VballNet 需要 9 幀序列輸入）
         self.ball_frame_buffer: List[np.ndarray] = []
@@ -736,9 +752,18 @@ class VolleyballAnalyzer:
                     track_ids.append(track_id)
                 return (jersey_num, jersey_num)
         
-        # 嘗試識別球衣號碼（每5幀執行一次，提高檢測頻率）
+        # 嘗試識別球衣號碼
         # 優先使用 YOLOv8 模型，如果不可用則使用 EasyOCR
-        if frame is not None and track_id % 5 == 0:  # 從每10幀改為每5幀
+        should_detect_jersey = frame is not None and track_id % 5 == 0
+        if should_detect_jersey and track_id in self.track_id_to_jersey_history:
+            elapsed = self.jersey_recheck_counts.get(track_id, 0) + 1
+            if elapsed < self.jersey_inference_interval:
+                self.jersey_recheck_counts[track_id] = elapsed
+                should_detect_jersey = False
+            else:
+                self.jersey_recheck_counts[track_id] = 0
+
+        if should_detect_jersey:
             jersey_num = self._detect_jersey_number(frame, bbox, track_id)
             if jersey_num:
                 self.jersey_number_cache[cache_key] = jersey_num

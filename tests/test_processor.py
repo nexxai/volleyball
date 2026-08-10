@@ -83,6 +83,15 @@ class TestAnalyzerInitialization:
 
         assert analyzer.jersey_lock_observations == 1
 
+    def test_jersey_inference_interval_from_environment(self, monkeypatch):
+        from processor import VolleyballAnalyzer
+
+        monkeypatch.setenv("JERSEY_INFERENCE_INTERVAL", "2")
+
+        analyzer = VolleyballAnalyzer()
+
+        assert analyzer.jersey_inference_interval == 2
+
 
 # ============================================================================
 # Ball Detection Tests
@@ -630,6 +639,7 @@ class TestStablePlayerID:
         analyzer.track_id_to_jersey_history[5] = [12, 8, 12]
         analyzer.jersey_to_stable_id[12] = 12
         analyzer.jersey_to_track_ids[12] = [5]
+        analyzer.jersey_recheck_counts[5] = 4
         analyzer._detect_jersey_number = Mock(return_value=None)
 
         result = analyzer._get_stable_player_id(
@@ -646,11 +656,31 @@ class TestStablePlayerID:
         analyzer.track_id_to_jersey_history[5] = [12, 12, 12]
         analyzer.jersey_to_stable_id[12] = 12
         analyzer.jersey_to_track_ids[12] = [5]
+        analyzer.jersey_recheck_counts[5] = 4
         analyzer._detect_jersey_number = Mock(return_value=None)
 
         analyzer._get_stable_player_id(5, [100, 100, 200, 300], sample_frame)
 
         analyzer._detect_jersey_number.assert_called_once()
+
+    def test_known_jersey_is_rechecked_at_configured_interval(self, sample_frame):
+        from processor import VolleyballAnalyzer
+
+        analyzer = VolleyballAnalyzer(
+            jersey_lock_observations=3,
+            jersey_inference_interval=3,
+        )
+        analyzer.track_id_to_jersey_history[5] = [12]
+        analyzer.jersey_to_stable_id[12] = 12
+        analyzer.jersey_to_track_ids[12] = [5]
+        analyzer._detect_jersey_number = Mock(return_value=None)
+
+        for _ in range(6):
+            analyzer._get_stable_player_id(
+                5, [100, 100, 200, 300], sample_frame
+            )
+
+        assert analyzer._detect_jersey_number.call_count == 2
     
     def test_set_jersey_number_mapping(self, analyzer):
         """Test setting jersey number mapping"""
