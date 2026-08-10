@@ -74,6 +74,15 @@ class TestAnalyzerInitialization:
         assert hasattr(analyzer, "jersey_to_stable_id")
         assert isinstance(analyzer.jersey_to_stable_id, dict)
 
+    def test_jersey_lock_observations_from_environment(self, monkeypatch):
+        from processor import VolleyballAnalyzer
+
+        monkeypatch.setenv("JERSEY_LOCK_OBSERVATIONS", "1")
+
+        analyzer = VolleyballAnalyzer()
+
+        assert analyzer.jersey_lock_observations == 1
+
 
 # ============================================================================
 # Ball Detection Tests
@@ -603,6 +612,45 @@ class TestStablePlayerID:
         stable_id, jersey_num = analyzer._get_stable_player_id(track_id, bbox, sample_frame)
         assert stable_id == track_id
         assert jersey_num is None
+
+    def test_stable_jersey_history_skips_model(self, analyzer, sample_frame):
+        analyzer.track_id_to_jersey_history[5] = [12, 12, 12]
+        analyzer.jersey_to_stable_id[12] = 12
+        analyzer.jersey_to_track_ids[12] = [5]
+        analyzer._detect_jersey_number = Mock()
+
+        result = analyzer._get_stable_player_id(
+            5, [100, 100, 200, 300], sample_frame
+        )
+
+        assert result == (12, 12)
+        analyzer._detect_jersey_number.assert_not_called()
+
+    def test_conflicting_jersey_history_keeps_inference(self, analyzer, sample_frame):
+        analyzer.track_id_to_jersey_history[5] = [12, 8, 12]
+        analyzer.jersey_to_stable_id[12] = 12
+        analyzer.jersey_to_track_ids[12] = [5]
+        analyzer._detect_jersey_number = Mock(return_value=None)
+
+        result = analyzer._get_stable_player_id(
+            5, [100, 100, 200, 300], sample_frame
+        )
+
+        assert result == (12, 12)
+        analyzer._detect_jersey_number.assert_called_once()
+
+    def test_jersey_lock_can_be_disabled(self, sample_frame):
+        from processor import VolleyballAnalyzer
+
+        analyzer = VolleyballAnalyzer(jersey_lock_observations=0)
+        analyzer.track_id_to_jersey_history[5] = [12, 12, 12]
+        analyzer.jersey_to_stable_id[12] = 12
+        analyzer.jersey_to_track_ids[12] = [5]
+        analyzer._detect_jersey_number = Mock(return_value=None)
+
+        analyzer._get_stable_player_id(5, [100, 100, 200, 300], sample_frame)
+
+        analyzer._detect_jersey_number.assert_called_once()
     
     def test_set_jersey_number_mapping(self, analyzer):
         """Test setting jersey number mapping"""

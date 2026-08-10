@@ -59,7 +59,8 @@ class VolleyballAnalyzer:
                  action_model_path: str = None,
                  player_model_path: str = None,
                  jersey_number_model_path: str = None,
-                 device: str = None):
+                 device: str = None,
+                 jersey_lock_observations: Optional[int] = None):
         """
         初始化分析器
         
@@ -69,6 +70,7 @@ class VolleyballAnalyzer:
             player_model_path: 球員偵測模型路徑 (YOLO格式)
             jersey_number_model_path: 球衣號碼檢測模型路徑 (YOLO格式)
             device: 運行設備 ('cpu', 'cuda', 'mps')，設為 None 時自動檢測最佳設備
+            jersey_lock_observations: 連續相同辨識次數達此值後停止重複推理；0 表示停用
         """
         # 自動檢測最佳設備（如果未指定）
         if device is None:
@@ -76,6 +78,19 @@ class VolleyballAnalyzer:
         else:
             self.device = device
             print(f"📱 使用指定設備: {self.device}")
+
+        if jersey_lock_observations is None:
+            configured_lock = os.getenv("JERSEY_LOCK_OBSERVATIONS", "3")
+            try:
+                jersey_lock_observations = int(configured_lock)
+                if jersey_lock_observations < 0:
+                    raise ValueError
+            except ValueError:
+                print(
+                    "⚠️  JERSEY_LOCK_OBSERVATIONS 必須是非負整數，使用預設值 3"
+                )
+                jersey_lock_observations = 3
+        self.jersey_lock_observations = max(0, jersey_lock_observations)
         
         self.ball_model = None
         self.action_model = None
@@ -700,6 +715,26 @@ class VolleyballAnalyzer:
             jersey_num = self.jersey_number_cache[cache_key]
             if jersey_num and jersey_num in self.jersey_to_stable_id:
                 return (self.jersey_to_stable_id[jersey_num], jersey_num)
+
+        # 連續多次辨識一致後鎖定號碼，避免每幀重複執行模型
+        if self.jersey_lock_observations and track_id in self.track_id_to_jersey_history:
+            history = self.track_id_to_jersey_history[track_id]
+            recent = history[-self.jersey_lock_observations:]
+            if (
+                len(recent) == self.jersey_lock_observations
+                and len(set(recent)) == 1
+            ):
+                jersey_num = recent[0]
+                if jersey_num in self.jersey_to_stable_id:
+                    if jersey_num in self.jersey_to_track_ids:
+                        if track_id not in self.jersey_to_track_ids[jersey_num]:
+                            self.jersey_to_track_ids[jersey_num].append(track_id)
+                    return (self.jersey_to_stable_id[jersey_num], jersey_num)
+                self.jersey_to_stable_id[jersey_num] = jersey_num
+                track_ids = self.jersey_to_track_ids.setdefault(jersey_num, [])
+                if track_id not in track_ids:
+                    track_ids.append(track_id)
+                return (jersey_num, jersey_num)
         
         # 嘗試識別球衣號碼（每5幀執行一次，提高檢測頻率）
         # 優先使用 YOLOv8 模型，如果不可用則使用 EasyOCR
@@ -729,31 +764,6 @@ class VolleyballAnalyzer:
                     self.jersey_to_stable_id[jersey_num] = jersey_num
                     self.jersey_to_track_ids[jersey_num] = [track_id]
                     return (jersey_num, jersey_num)
-        
-        # 如果沒有檢測到球衣號碼，檢查是否有歷史記錄（從多幀融合中獲取）
-        # 改善：即使當前幀沒有檢測，也檢查歷史記錄
-        if track_id in self.track_id_to_jersey_history:
-            history = self.track_id_to_jersey_history[track_id]
-            if len(history) >= 1:  # 降低閾值：至少1次檢測就可以使用（提高檢測率）
-                from collections import Counter
-                counter = Counter(history)
-                most_common = counter.most_common(1)[0]
-                if most_common[1] >= 1:  # 降低閾值：至少出現1次就可以使用
-                    jersey_num = most_common[0]
-                    # 使用歷史記錄中的球衣號碼
-                    if jersey_num in self.jersey_to_stable_id:
-                        # 檢查這個球衣號碼是否已經被其他 track_id 使用過
-                        if jersey_num in self.jersey_to_track_ids:
-                            if track_id not in self.jersey_to_track_ids[jersey_num]:
-                                self.jersey_to_track_ids[jersey_num].append(track_id)
-                        return (self.jersey_to_stable_id[jersey_num], jersey_num)
-                    else:
-                        self.jersey_to_stable_id[jersey_num] = jersey_num
-                        if jersey_num not in self.jersey_to_track_ids:
-                            self.jersey_to_track_ids[jersey_num] = []
-                        if track_id not in self.jersey_to_track_ids[jersey_num]:
-                            self.jersey_to_track_ids[jersey_num].append(track_id)
-                        return (jersey_num, jersey_num)
         
         # 改善：檢查是否有其他 track_id 已經檢測到球衣號碼，並且當前 track_id 在歷史記錄中
         # 這可以幫助合併相同球衣號碼的不同 track_id
